@@ -19,18 +19,19 @@ import {
   DialogActions,
   Paper,
   Stack,
+  CircularProgress,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { RootState } from '../features/store';
-import { addExpense, deleteExpense } from '../features/expenses/expensesSlice';
-import { setCurrentGroup } from '../features/groups/groupsSlice';
+import { RootState, AppDispatch } from '../features/store';
+import { addExpense, deleteExpense, fetchExpenses } from '../features/expenses/expensesSlice';
+import { setCurrentGroup, fetchGroup } from '../features/groups/groupsSlice';
 import { Group, Expense, User } from '../types';
 
 const GroupDetails = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { currentGroup } = useSelector((state: RootState) => state.groups);
+  const dispatch = useDispatch<AppDispatch>();
+  const { currentGroup, loading, error } = useSelector((state: RootState) => state.groups);
   const { expenses } = useSelector((state: RootState) => state.expenses);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -43,9 +44,26 @@ const GroupDetails = () => {
 
   useEffect(() => {
     if (groupId) {
-      dispatch(setCurrentGroup(groupId));
+      dispatch(fetchGroup(groupId));
+      dispatch(fetchExpenses(groupId));
     }
   }, [dispatch, groupId]);
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
 
   if (!currentGroup) {
     return (

@@ -1,5 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { v4 as uuidv4 } from 'uuid';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getExpenses, addExpense as addExpenseToFirebase, deleteExpense as deleteExpenseFromFirebase } from '../../firebase/config';
+import { RootState } from '../store';
 
 export interface Expense {
   id: string;
@@ -23,41 +24,55 @@ const initialState: ExpensesState = {
   error: null,
 };
 
+export const fetchExpenses = createAsyncThunk<Expense[], string>(
+  'expenses/fetchExpenses',
+  async (groupId: string) => {
+    const expenses = await getExpenses(groupId);
+    return expenses as Expense[];
+  }
+);
+
+export const addExpense = createAsyncThunk<Expense, Omit<Expense, 'id'>>(
+  'expenses/addExpense',
+  async (expenseData) => {
+    const expenseId = await addExpenseToFirebase(expenseData);
+    return { id: expenseId, ...expenseData };
+  }
+);
+
+export const deleteExpense = createAsyncThunk<string, string>(
+  'expenses/deleteExpense',
+  async (expenseId: string) => {
+    await deleteExpenseFromFirebase(expenseId);
+    return expenseId;
+  }
+);
+
 const expensesSlice = createSlice({
   name: 'expenses',
   initialState,
-  reducers: {
-    addExpense: (state, action: PayloadAction<Omit<Expense, 'id'>>) => {
-      const newExpense: Expense = {
-        ...action.payload,
-        id: uuidv4(),
-      };
-      state.expenses.push(newExpense);
-    },
-    updateExpense: (state, action: PayloadAction<Expense>) => {
-      const index = state.expenses.findIndex(expense => expense.id === action.payload.id);
-      if (index !== -1) {
-        state.expenses[index] = action.payload;
-      }
-    },
-    deleteExpense: (state, action: PayloadAction<string>) => {
-      state.expenses = state.expenses.filter(expense => expense.id !== action.payload);
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.loading = action.payload;
-    },
-    setError: (state, action: PayloadAction<string | null>) => {
-      state.error = action.payload;
-    },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchExpenses.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchExpenses.fulfilled, (state, action) => {
+        state.loading = false;
+        state.expenses = action.payload;
+      })
+      .addCase(fetchExpenses.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch expenses';
+      })
+      .addCase(addExpense.fulfilled, (state, action) => {
+        state.expenses.push(action.payload);
+      })
+      .addCase(deleteExpense.fulfilled, (state, action) => {
+        state.expenses = state.expenses.filter(expense => expense.id !== action.payload);
+      });
   },
 });
-
-export const {
-  addExpense,
-  updateExpense,
-  deleteExpense,
-  setLoading,
-  setError,
-} = expensesSlice.actions;
 
 export default expensesSlice.reducer; 

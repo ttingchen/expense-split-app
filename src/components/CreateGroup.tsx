@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { AppDispatch } from '../features/store';
 import {
   Box,
   Button,
@@ -12,8 +13,9 @@ import {
   Stack,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { createGroup } from '../features/groups/groupsSlice';
+import { createNewGroup } from '../features/groups/groupsSlice';
 import { v4 as uuidv4 } from 'uuid';
+import { auth } from '../firebase/config';
 
 interface MemberInput {
   name: string;
@@ -21,7 +23,7 @@ interface MemberInput {
 }
 
 const CreateGroup = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -43,12 +45,13 @@ const CreateGroup = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(createGroup({
+    dispatch(createNewGroup({
       name,
       description,
+      createdBy: auth.currentUser?.uid || '',
       members: members
         .filter(m => m.name && m.email)
-        .map(m => ({ ...m, id: uuidv4() })),
+        .map(m => ({ ...m, id: uuidv4(), joinedAt: new Date().toISOString() })),
     }));
     navigate('/');
   };
